@@ -200,7 +200,19 @@ class CategoryPosts extends WP_Widget {
 			// Excerpt length filter
 			$new_excerpt_length = create_function('$length', "return " . $instance["excerpt_length"] . ";");
 			if ( $instance["excerpt_length"] > 0 )
-				add_filter('excerpt_length', $new_excerpt_length);		
+				add_filter('excerpt_length', $new_excerpt_length);
+
+			// Excerpt more link filter
+			function new_excerpt_more($more) {
+				global $post, $new_excerpt_more_text;
+				return ' <a class="cat-post-excerpt-more" href="'. get_permalink($post->ID) . '">' . $new_excerpt_more_text . '</a>';
+			}
+			if( isset($instance["excerpt_more_text"]) && ltrim($instance["excerpt_more_text"]) != '' )
+			{
+				global $new_excerpt_more_text; 
+				$new_excerpt_more_text = $instance["excerpt_more_text"];
+				add_filter('excerpt_more', 'new_excerpt_more');
+			}
 
 			echo $before_widget;
 
@@ -208,9 +220,9 @@ class CategoryPosts extends WP_Widget {
 			if( !isset ( $instance["hide_title"] ) ) {
 				echo $before_title;
 				if( isset ( $instance["title_link"] ) ) {
-					echo '<a href="' . get_category_link($instance["cat"]) . '">' . $instance["title"] . '</a>';
+					echo '<a href="' . get_category_link($instance["cat"]) . '">' . apply_filters( 'widget_title', $instance["title"] ) . '</a>';
 				} else {
-					echo $instance["title"];
+					echo apply_filters( 'widget_title', $instance["title"] );
 				}
 				echo $after_title;
 			}
@@ -223,9 +235,11 @@ class CategoryPosts extends WP_Widget {
 				$cat_posts->the_post(); ?>
 				
 				<li <?php if( !isset( $instance['disable_css'] ) ) {
-						echo "class=\"cat-post-item";
-							if ( is_single(get_the_title() ) ) { echo " cat-post-current"; }
-						echo "\"";
+						if ( is_single(get_the_title() )) { 
+							echo "class='cat-post-item cat-post-current'"; 
+						} else {
+							echo "class='cat-post-item'";
+						}
 					} ?> >
 					
 					<?php
@@ -233,12 +247,18 @@ class CategoryPosts extends WP_Widget {
 						if ( current_theme_supports("post-thumbnails") &&
 								isset( $instance["thumb"] ) &&
 								has_post_thumbnail() ) : ?>
-							<a <?php if( !isset( $instance['disable_css'] ) ) { echo "class=\"cat-post-thumbnail\""; } ?>
+							<a <?php if( !isset( $instance['disable_css'] )) {
+								if( isset($instance['thumb_hover'] )) {
+									echo "class=\"cat-post-thumbnail cat-post-" . $instance['thumb_hover'] . "\"";
+								} else {
+									echo "class=\"cat-post-thumbnail\"";
+								}
+							} ?>
 								href="<?php the_permalink(); ?>" title="<?php the_title_attribute(); ?>">
 								<?php the_post_thumbnail( array($instance['thumb_w'],$instance['thumb_h'])); ?>
 							</a>
 					<?php endif; 
-					endif; ?>					
+					endif; ?>
 					
 					<a class="post-title <?php if( !isset( $instance['disable_css'] ) ) { echo " cat-post-title"; } ?>" 
 						href="<?php the_permalink(); ?>" rel="bookmark"><?php the_title(); ?>
@@ -257,7 +277,13 @@ class CategoryPosts extends WP_Widget {
 						if ( current_theme_supports("post-thumbnails") &&
 								isset( $instance["thumb"] ) &&
 								has_post_thumbnail() ) : ?>
-							<a <?php if( !isset( $instance['disable_css'] ) ) { echo "class=\"cat-post-thumbnail\""; } ?>
+							<a <?php if( !isset( $instance['disable_css'] )) { 
+									if( isset($instance['thumb_hover'] )) {
+										echo "class=\"cat-post-thumbnail cat-post-" . $instance['thumb_hover'] . "\"";
+									} else {
+										echo "class=\"cat-post-thumbnail\"";
+									}
+								} ?>
 								href="<?php the_permalink(); ?>" title="<?php the_title_attribute(); ?>">
 								<?php the_post_thumbnail( array($instance['thumb_w'],$instance['thumb_h'])); ?>
 							</a>
@@ -272,7 +298,7 @@ class CategoryPosts extends WP_Widget {
 						<p class="comment-num <?php if( !isset( $instance['disable_css'] ) ) { echo "cat-post-comment-num"; } ?>">
 							(<?php comments_number(); ?>)
 						</p>
-					<?php endif;					
+					<?php endif;
 
 					if ( isset( $instance['author'] ) ) : ?>
 						<p class="post-author <?php if( !isset( $instance['disable_css'] ) ) { echo "cat-post-author"; } ?>">
@@ -332,6 +358,7 @@ class CategoryPosts extends WP_Widget {
 			'footer_link'          => '',
 			'excerpt'              => '',
 			'excerpt_length'       => '',
+			'excerpt_more_text'    => '',
 			'comment_num'          => '',
 			'author'               => '',
 			'date'                 => '',
@@ -342,6 +369,7 @@ class CategoryPosts extends WP_Widget {
 			'hideNoThumb'          => '',
 			'thumb_w'              => '',
 			'thumb_h'              => '',
+			'thumb_hover'          => '',
 			'disable_css'          => '',
 			'hide_if_empty'        => ''
 		) );
@@ -357,6 +385,7 @@ class CategoryPosts extends WP_Widget {
 		$footer_link          = $instance['footer_link'];
 		$excerpt              = $instance['excerpt'];
 		$excerpt_length       = $instance['excerpt_length'];
+		$excerpt_more_text    = $instance['excerpt_more_text'];
 		$comment_num          = $instance['comment_num'];
 		$author               = $instance['author'];
 		$date                 = $instance['date'];
@@ -367,6 +396,7 @@ class CategoryPosts extends WP_Widget {
 		$hideNoThumb          = $instance['hideNoThumb'];
 		$thumb_w              = $instance['thumb_w'];
 		$thumb_h              = $instance['thumb_h'];
+		$thumb_hover          = $instance['thumb_hover'];
 		$disable_css          = $instance['disable_css'];
 		$hide_if_empty        = $instance['hide_if_empty'];
 
@@ -466,7 +496,18 @@ class CategoryPosts extends WP_Widget {
 								<?php _e('Height:','categoryposts')?> <input class="widefat" style="width:30%;" type="number" min="1" id="<?php echo $this->get_field_id("thumb_h"); ?>" name="<?php echo $this->get_field_name("thumb_h"); ?>" value="<?php echo $instance["thumb_h"]; ?>" />
 							</label>
 						</label>
-					</p>			
+					</p>
+					<p>
+						<label for="<?php echo $this->get_field_id("thumb_hover"); ?>">
+							<?php _e( 'Mouse hover effect:','categorypostspro' ); ?>
+						</label>
+						<select id="<?php echo $this->get_field_id("thumb_hover"); ?>" name="<?php echo $this->get_field_name("thumb_hover"); ?>">
+							<option value="none" <?php selected($thumb_hover, 'none')?>><?php _e( 'None', 'categorypostspro' ); ?></option>
+							<option value="dark" <?php selected($thumb_hover, 'dark')?>><?php _e( 'Dark', 'categorypostspro' ); ?></option>
+							<option value="white" <?php selected($thumb_hover, 'white')?>><?php _e( 'White', 'categorypostspro' ); ?></option>
+							<option value="scale" <?php selected($thumb_hover, 'scale')?>><?php _e( 'Scale', 'categorypostspro' ); ?></option>
+						</select>
+					</p>
 				</div>
 			<?php endif; ?>	
 			<h4><?php _e('Post details','categoryposts')?></h4>
@@ -481,8 +522,14 @@ class CategoryPosts extends WP_Widget {
 					<label for="<?php echo $this->get_field_id("excerpt_length"); ?>">
 						<?php _e( 'Excerpt length (in words):','categoryposts' ); ?>
 					</label>
-					<input style="text-align: center;" type="text" id="<?php echo $this->get_field_id("excerpt_length"); ?>" name="<?php echo $this->get_field_name("excerpt_length"); ?>" value="<?php echo $instance["excerpt_length"]; ?>" size="3" />
-				</p>			
+					<input style="text-align: center; width:30%;" type="number" min="0" id="<?php echo $this->get_field_id("excerpt_length"); ?>" name="<?php echo $this->get_field_name("excerpt_length"); ?>" value="<?php echo $instance["excerpt_length"]; ?>" />
+				</p>				
+				<p>
+					<label for="<?php echo $this->get_field_id("excerpt_more_text"); ?>">
+						<?php _e( 'Excerpt \'more\' text:','categoryposts' ); ?>
+					</label>
+					<input class="widefat" style="width:55%;" placeholder="<?php _e('... more','categoryposts')?>" id="<?php echo $this->get_field_id("excerpt_more_text"); ?>" name="<?php echo $this->get_field_name("excerpt_more_text"); ?>" type="text" value="<?php echo $instance["excerpt_more_text"]; ?>" />
+				</p>				
 				<p>
 					<label for="<?php echo $this->get_field_id("date"); ?>">
 						<input type="checkbox" class="checkbox" id="<?php echo $this->get_field_id("date"); ?>" name="<?php echo $this->get_field_name("date"); ?>"<?php checked( (bool) $instance["date"], true ); ?> />
